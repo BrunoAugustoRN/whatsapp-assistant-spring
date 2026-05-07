@@ -12,6 +12,7 @@ import project.whatsassist.example.demo.repository.IdeaRepository;
 import project.whatsassist.example.demo.repository.ReminderRepository;
 import project.whatsassist.example.demo.repository.RoutineRepository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 @Service
 @RequiredArgsConstructor
@@ -39,6 +40,7 @@ public class AssistantService {
                 case 2 -> saveIdea(args);//salvar ideia
                 case 3 -> deleteRecord(args);//deletar rotina ou ideia
                 case 4 -> listActive();//listar rotina pendente e todas ideias
+                case 5 -> completeTask(args);//alterar status da tarefa
             }
     }
 /*
@@ -96,11 +98,22 @@ public class AssistantService {
             }
             return sb.toString();//formatar o objeto para texto/string e retornar
     }
+
+    public String completeTask(String args){//Recebe o id em formato de texto
+        Long id = Long.parseLong(args);//converte o id para Long
+
+        return routineRepo.findById(id).map(routine ->{//busca em rotina a tarefa com o id q o usuario informou. .map para verificar se realmete existe a tarefa
+                routine.setStatus(Status.DONE);//se existir altera status para DONE
+                routine.setCompletedAt(LocalDateTime.now());//e atualiza a data e hora para o momento atual
+                routineRepo.save(routine);//salva no db
+                return "Tarefa* " + routine.getDescription() + " *concluida";//retorna mensagem de tarefa concluida, se condicao .map for true
+                }).orElse("Tarefa* " + id + " *não encontrada");//se nao retona mensagem de tarefa nao concluida .orELse
+    }
 /*
-    public String completeTask(String args){
+    public String todaySummary(){
 
     }
-*/
 
+*/
 
 }
