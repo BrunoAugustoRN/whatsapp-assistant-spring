@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import project.whatsassist.example.demo.enuns.Status;
 import project.whatsassist.example.demo.model.Idea;
+import project.whatsassist.example.demo.model.Reminder;
 import project.whatsassist.example.demo.model.Routine;
 import project.whatsassist.example.demo.parser.CommandParser;
 import project.whatsassist.example.demo.parser.ParsedCommand;
@@ -12,19 +13,18 @@ import project.whatsassist.example.demo.repository.IdeaRepository;
 import project.whatsassist.example.demo.repository.ReminderRepository;
 import project.whatsassist.example.demo.repository.RoutineRepository;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class AssistantService {
 
-    private CommandParser parser;
-    private NotifierService notifier;
-    @Autowired
-    private RoutineRepository routineRepo;
-    @Autowired
-    private IdeaRepository ideaRepo;
-    private ReminderRepository reminderRepo;
+    private final CommandParser parser;
+    private final NotifierService notifier;
+    private final RoutineRepository routineRepo;
+    private final IdeaRepository ideaRepo;
+    private final ReminderRepository reminderRepo;
 
 
     /*
@@ -41,6 +41,8 @@ public class AssistantService {
                 case 3 -> deleteRecord(args);//deletar rotina ou ideia
                 case 4 -> listActive();//listar rotina pendente e todas ideias
                 case 5 -> completeTask(args);//alterar status da tarefa
+                case 6 -> todaySummary();//listar tarefas do dia
+                case 7 -> setReminder(args, from);//lembrete
             }
     }
 /*
@@ -109,11 +111,45 @@ public class AssistantService {
                 return "Tarefa* " + routine.getDescription() + " *concluida";//retorna mensagem de tarefa concluida, se condicao .map for true
                 }).orElse("Tarefa* " + id + " *não encontrada");//se nao retona mensagem de tarefa nao concluida .orELse
     }
-/*
-    public String todaySummary(){
 
+    public String todaySummary(){
+        LocalDate today = LocalDate.now();//Dia atual
+        LocalDateTime start = today.atStartOfDay();//Data do dia atual + hora do inicio do dia 00:00:00
+        LocalDateTime end = today.atTime(23, 59, 59);//Hora final do dia 23:59:59
+
+        List<Routine> routine = routineRepo.findByScheduledAtBetweenAndStatus(start, end, Status.PENDING);//lista de tarefas pendentes do dia, intervalo das 00:00 as 23:59
+
+        if(routine.isEmpty()){//entra aqui se estiver vazio
+            return "Nada por aqui hoje";
+        }
+
+        StringBuilder sb = new StringBuilder(" *Hoje: *\n");//formatacao da mensagem com as tarefas
+        for(Routine r : routine){
+            sb.append(" ")
+                    .append(r.getScheduledAt().toLocalTime())
+                    .append(" - ")
+                    .append(r.getDescription())
+                    .append("\n");
+        }
+        return sb.toString();//retorna em texto/string
     }
 
-*/
+    public String setReminder(String args, String from){//recebe minutos e descricao, from numero do whatsapp
+        String[] parts = args.split(",",2   );//separa a msg por virgula em dois pedacos
+        int minutes = Integer.parseInt(parts[0].trim());//converte o minuto enviado em inteiro e tira espacos cm trim
+        String description = parts[1].trim();//tirar espacos da descricao
+
+        LocalDateTime triggerAt = LocalDateTime.now().plusMinutes(minutes);//soma minutos recebido + hora atual
+
+        Reminder reminder = new Reminder();//criando e salvando reminder
+        reminder.setDescription(description);
+        reminder.setTriggerAt(triggerAt);
+        reminder.setPhoneNumber(from);
+        reminder.setFired(false);//fired = false sinalizando q lembrete ainda nao foi disparado
+        reminderRepo.save(reminder);
+
+        return " Te aviso em " + minutes + " min: " + description;
+
+    }
 
 }
