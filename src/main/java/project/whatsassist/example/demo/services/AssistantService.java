@@ -1,7 +1,6 @@
 package project.whatsassist.example.demo.services;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import project.whatsassist.example.demo.enuns.Status;
 import project.whatsassist.example.demo.model.Idea;
@@ -15,6 +14,8 @@ import project.whatsassist.example.demo.repository.RoutineRepository;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 @Service
 @RequiredArgsConstructor
@@ -37,22 +38,39 @@ public class AssistantService {
             String args = parts.length > 1 ? parts[1].trim() : "";//args recebe conteudo se mensagem for maior q 1, se nao fica vazio
 
             switch (option){//switch case com option formatado para int, assim chamado o metodo q se pede na mensagem
+                case 1 -> scheduleRoutine(args);//anota tarefa a rotina
                 case 2 -> saveIdea(args);//salvar ideia
                 case 3 -> deleteRecord(args);//deletar rotina ou ideia
                 case 4 -> listActive();//listar rotina pendente e todas ideias
                 case 5 -> completeTask(args);//alterar status da tarefa
                 case 6 -> todaySummary();//listar tarefas do dia
                 case 7 -> setReminder(args, from);//lembrete
+                case 8 -> listHistory();//lista todas tarefas concluidas do dia
             }
     }
-/*
-    public String scheduleRoutine(args){
 
+    public String scheduleRoutine(String args){
+        Routine routine = new Routine();
+        String[] parts = args.split(",",3);//quebra msg em tres partes
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");//converte data e hora para LocalDate e LocalTime
+        DateTimeFormatter horaFormatter = DateTimeFormatter.ofPattern("HH:mm");
+        LocalDate data = LocalDate.parse(parts[0], formatter);
+        LocalTime time = LocalTime.parse(parts[1], horaFormatter);
+        LocalDateTime dataTime = data.atTime(time);//junta data e hora
+
+        routine.setScheduledAt(dataTime);//preenche atributos
+        routine.setDescription(parts[2].trim());
+        routine.setStatus(Status.PENDING);
+        routine.setCreatedAt(LocalDateTime.now());
+
+        routineRepo.save(routine);
+
+        return "*Tarefa: * " + parts[2] + " *anotado*";
     }
-*/
+
     public String saveIdea(String content){ //metodo salvar ideia
            Idea idea = new Idea();//objeto da classe Idea
-           idea.setContent(content);//preenche com o conteudo recebido por parametro
+           idea.setContent(content);//preenche com o conteudo recebido
            ideaRepo.save(idea);//salva ideia no db
            return "Ideia anotada"+ content;//retorna mensagem q foi salvo
     }
@@ -150,6 +168,26 @@ public class AssistantService {
 
         return " Te aviso em " + minutes + " min: " + description;
 
+    }
+
+    public String listHistory(){
+        LocalDate today = LocalDate.now();//dia atual
+        LocalDateTime start = today.atStartOfDay();//inicio do dia 00:00
+        List<Routine> routineList = routineRepo.findByStatusAndCompletedAtAfterOrderByCompletedAtDesc(Status.DONE, start);//busca no bd status DONE apos 00:00
+
+        if(routineList.isEmpty()){//verifica se a alguma tarefa concluida
+            return "Nenhuma tarefa concluida " + today;
+        }
+
+        StringBuilder sb = new StringBuilder("*Tarefas concluidas: *\n");//formatacao da msg
+        for(Routine r : routineList){
+            sb.append('-')
+                    .append(r.getDescription())
+                    .append("-").append(r.getCompletedAt().toLocalTime())
+                    .append("\n");
+        }
+
+        return sb.toString();
     }
 
 }
