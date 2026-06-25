@@ -45,7 +45,7 @@ public class AssistantService {
 
                     case 3 -> deleteRecord(pdc.rawArgs());//deletar rotina ou ideia
 
-                    case 4 -> listActive();//listar rotina pendente e todas ideias
+                    case 4 -> listActive(from);//listar rotina pendente e todas ideias
 
                     case 5 -> completeTask(pdc.rawArgs());//alterar status da tarefa
 
@@ -56,7 +56,8 @@ public class AssistantService {
                     case 8 -> listHistory();//lista todas tarefas concluidas do dia
                 }
             }catch (InvalidCommandException e){
-                System.out.println("Erro: " + e.getMessage());
+                notifier.send(from, "⚠ " + e.getMessage());
+
             }
     }
 
@@ -104,7 +105,7 @@ public class AssistantService {
 
     }
 
-    public String listActive(){//metodo listar rotinas pendenter e todas ideias
+    public String listActive(String from){//metodo listar rotinas pendenter e todas ideias
             List<Routine> routineList = routineRepo.findByStatus(Status.PENDING);//lista de rotinas pendentes
             List<Idea> ideaList = ideaRepo.findAll();//lista de ideias
 
@@ -117,19 +118,21 @@ public class AssistantService {
             if(!routineList.isEmpty()){//entra aqui apenas se tiver algo
                 sb.append("*Rotinas*\n");//formatacao de mensagem -ID-DESCRICAO-DATA AGENDADA
                 for(Routine r : routineList){
-                    sb.append("-").append(r.getId());
-                    sb.append("-").append(r.getDescription());
-                    sb.append("(").append(r.getScheduledAt()).append(")");
+                    sb.append("- ").append(r.getId());
+                    sb.append(" - ").append(r.getDescription());
+                    sb.append("(").append(r.getScheduledAt()).append(")\n");
 
                 }
                 for(Idea i : ideaList){
-                    sb.append("*Ideias:*\n");//ID-DESCRICAO-DATA CRIADA
-                    sb.append("-").append(i.getId());
-                    sb.append("-").append(i.getContent());
-                    sb.append("-").append(i.getCreatedAt());
+                    sb.append("\n*Ideias:*\n");//ID-DESCRICAO-DATA CRIADA
+                    sb.append("- ").append(i.getId());
+                    sb.append(" - ").append(i.getContent());
+                    sb.append("- (").append(i.getCreatedAt()).append(")\n");
                 }
             }
-            return sb.toString();//formatar o objeto para texto/string e retornar
+            sb.toString();//formatar o objeto para texto/string e retornar
+            notifier.send(from,sb.toString());
+            return sb.toString();
     }
 
     public String completeTask(String args){//Recebe o id em formato de texto
