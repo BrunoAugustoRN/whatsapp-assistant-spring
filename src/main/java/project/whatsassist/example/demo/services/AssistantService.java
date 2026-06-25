@@ -7,6 +7,7 @@ import project.whatsassist.example.demo.model.Idea;
 import project.whatsassist.example.demo.model.Reminder;
 import project.whatsassist.example.demo.model.Routine;
 import project.whatsassist.example.demo.parser.CommandParser;
+import project.whatsassist.example.demo.parser.InvalidCommandException;
 import project.whatsassist.example.demo.parser.ParsedCommand;
 import project.whatsassist.example.demo.repository.IdeaRepository;
 import project.whatsassist.example.demo.repository.ReminderRepository;
@@ -33,35 +34,47 @@ public class AssistantService {
      *ex: scheduledRoutine() opcao 1 "ID, CONTEUDO" (1, 10/04, 08:00, ESTUDAR JAVA)
     * */
     public void handleCommand(String from,String body){//Recebe numero whatsapp + id-conteudo
-            String[] parts = body.split(",",2);//separa a mensagem em no maximo dois pedacos, utilizando o split
-            int option = Integer.parseInt(parts[0].trim());//option recebe um id de 1 a 8, parseInt para converter de string para int, na posicao 0, onde esta o id, trim para tirar espacos
-            String args = parts.length > 1 ? parts[1].trim() : "";//args recebe conteudo se mensagem for maior q 1, se nao fica vazio
+            try {
+                ParsedCommand pdc = parser.parsedCommand(body);
 
-            switch (option){//switch case com option formatado para int, assim chamado o metodo q se pede na mensagem
-                case 1 -> scheduleRoutine(args);//anota tarefa a rotina
-                case 2 -> saveIdea(args);//salvar ideia
-                case 3 -> deleteRecord(args);//deletar rotina ou ideia
-                case 4 -> listActive();//listar rotina pendente e todas ideias
-                case 5 -> completeTask(args);//alterar status da tarefa
-                case 6 -> todaySummary();//listar tarefas do dia
-                case 7 -> setReminder(args, from);//lembrete
-                case 8 -> listHistory();//lista todas tarefas concluidas do dia
+                switch (pdc.option()) {//switch case com option formatado para int, assim chamado o metodo q se pede na mensagem
+
+                    case 1 -> scheduleRoutine(pdc.rawArgs());//anota tarefa a rotina
+
+                    case 2 -> saveIdea(pdc.rawArgs());//salvar ideia
+
+                    case 3 -> deleteRecord(pdc.rawArgs());//deletar rotina ou ideia
+
+                    case 4 -> listActive();//listar rotina pendente e todas ideias
+
+                    case 5 -> completeTask(pdc.rawArgs());//alterar status da tarefa
+
+                    case 6 -> todaySummary();//listar tarefas do dia
+
+                    case 7 -> setReminder(pdc.rawArgs(), from);//lembrete
+
+                    case 8 -> listHistory();//lista todas tarefas concluidas do dia
+                }
+            }catch (InvalidCommandException e){
+                System.out.println("Erro: " + e.getMessage());
             }
     }
 
     public String scheduleRoutine(String args){
         Routine routine = new Routine();
         String[] parts = args.split(",",3);//quebra msg em tres partes
+        String dataComAno = parts[0].trim() + "/" + LocalDate.now().getYear();
+
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");//converte data e hora para LocalDate e LocalTime
         DateTimeFormatter horaFormatter = DateTimeFormatter.ofPattern("HH:mm");
-        LocalDate data = LocalDate.parse(parts[0], formatter);
-        LocalTime time = LocalTime.parse(parts[1], horaFormatter);
+
+        LocalDate data = LocalDate.parse(dataComAno, formatter);
+        LocalTime time = LocalTime.parse(parts[1].trim(), horaFormatter);
         LocalDateTime dataTime = data.atTime(time);//junta data e hora
 
         routine.setScheduledAt(dataTime);//preenche atributos
         routine.setDescription(parts[2].trim());
         routine.setStatus(Status.PENDING);
-        routine.setCreatedAt(LocalDateTime.now());
 
         routineRepo.save(routine);
 

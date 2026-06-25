@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
 import project.whatsassist.example.demo.enuns.Status;
 
 import java.time.LocalDateTime;
@@ -24,6 +25,8 @@ public class Routine {
     private LocalDateTime scheduledAt;
     private Status status;
     private LocalDateTime completedAt;
+    @CreationTimestamp
+    @Column(updatable = false)
     private LocalDateTime createdAt;
 
 
