@@ -1,7 +1,6 @@
 package project.whatsassist.example.demo.controller;
 
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -10,8 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 import project.whatsassist.example.demo.services.AssistantService;
 
 @RestController
-@RequiredArgsConstructor
-public class MessageController {
+public class    MessageController {
 
     @Autowired
     private AssistantService assistantService;

@@ -25,7 +25,7 @@ public class CommandParser {
             );
         }
         //verfica se a opcao existe
-        if(option < 1 || option > 8){
+        if(option < 1 || option > 9){
             throw new InvalidCommandException(
                     "Opção inválida " + option + "\n" + menuText()
             );
@@ -59,7 +59,7 @@ public class CommandParser {
                     );
                 }
             }
-            case 3, 5 ->{
+            case 3, 4, 6 ->{
                 //remover ou concluir
                 if(args.isBlank() || !args.matches("\\d+")){
                     throw new InvalidCommandException(
@@ -68,15 +68,15 @@ public class CommandParser {
                     );
                 }
             }
-            case 4, 6, 8 -> {
+            case 5, 9 -> {
 
             }
-            case 7 ->{
+            case 8 ->{
                 String[] p = args.split(",",2);
                 if(p.length < 2 || p[1].isBlank() || !p[0].trim().matches("\\d+")){
                     throw new InvalidCommandException(
-                            "Formato: 7, minutos, descrição\n" +
-                            "Ex: 7, 15, Tirar café"
+                            "Formato: 8, minutos, descrição\n" +
+                            "Ex: 8, 15, Tirar café"
                     );
                 }
             }
@@ -87,12 +87,13 @@ public class CommandParser {
                 Menu do assistente: 
                 1 - Agendar Rotina  (1, DD/MM, HH:mm, Desc)
                 2 - Anotar Ideia    (2, Sua ideia)
-                3 - Remover         (3, ID)
-                4 - Listar Ativas
-                5 - Concluir        (5, ID)
-                6 - Resumo de Hoje
-                7 - Lembrete        (7, min, Desc)
-                8 - Histórico
+                3 - Remover Rotina  (3, ID)
+                4 - Remover ideia   (4, ID)
+                5 - Listar Ativas
+                6 - Concluir        (6, ID)
+                7 - Resumo de Hoje
+                8 - Lembrete        (8, min, Desc)
+                9 - Histórico
                 """;
     }
 
