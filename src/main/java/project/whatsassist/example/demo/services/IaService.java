@@ -8,7 +8,6 @@ import com.google.genai.types.GenerateContentResponse;
 @Service
 public class IaService {
 
-
     Client client = new Client();
 
     public String testarConexao() {
