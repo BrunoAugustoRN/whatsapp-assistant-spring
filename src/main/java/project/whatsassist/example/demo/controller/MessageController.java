@@ -21,7 +21,7 @@ public class    MessageController {
             @RequestParam("From") String from, //parametros filtrados que devem vir na url, assim podendo pegar a mensagem FROM: numero do whatsapp
             @RequestParam("Body") String body // BODY: conteudo que usuario digitou
     ){
-            assistantService.handleCommand(from, body); //chamar metodo passando From e Body
+            assistantService.handleIaCommand(from, body); //chamar metodo passando From e Body
             return ResponseEntity.ok().build(); //retorna 200ok para o twillo
     }
 

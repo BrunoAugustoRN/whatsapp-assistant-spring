@@ -1,14 +1,14 @@
 package project.whatsassist.example.demo.services;
 
+import com.google.genai.types.FunctionCall;
+import com.google.genai.types.GenerateContentResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import project.whatsassist.example.demo.enuns.Status;
+import project.whatsassist.example.demo.ia.IaService;
 import project.whatsassist.example.demo.model.Idea;
 import project.whatsassist.example.demo.model.Reminder;
 import project.whatsassist.example.demo.model.Routine;
-import project.whatsassist.example.demo.parser.CommandParser;
-import project.whatsassist.example.demo.parser.InvalidCommandException;
-import project.whatsassist.example.demo.parser.ParsedCommand;
 import project.whatsassist.example.demo.repository.IdeaRepository;
 import project.whatsassist.example.demo.repository.ReminderRepository;
 import project.whatsassist.example.demo.repository.RoutineRepository;
@@ -16,79 +16,71 @@ import project.whatsassist.example.demo.repository.RoutineRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
 @Service
 @RequiredArgsConstructor
 public class AssistantService {
 
-    private final CommandParser parser;
     private final NotifierService notifier;
     private final RoutineRepository routineRepo;
     private final IdeaRepository ideaRepo;
     private final ReminderRepository reminderRepo;
+    private final IaService iaService;
 
+   public void handleIaCommand(String from, String body){
+       GenerateContentResponse response = iaService.interpretar(body);
+        List<FunctionCall> calls = response.functionCalls();
 
-    /*
-    * metodo para receber from = numero whatsapp(67199999999) / body  = um id de 1 a 8 para identificacao de qual metodo deve chamar
-     *ex: scheduledRoutine() opcao 1 "ID, CONTEUDO" (1, 10/04, 08:00, ESTUDAR JAVA)
-    * */
-    public void handleCommand(String from,String body){//Recebe numero whatsapp + id-conteudo
-            try {
-                ParsedCommand pdc = parser.parsedCommand(body);
+        if(calls == null || calls.isEmpty()){
+            notifier.send(from, response.text());
+            return;
+        }
 
-                switch (pdc.option()) {//switch case com option formatado para int, assim chamado o metodo q se pede na mensagem
+        FunctionCall call = calls.get(0);
+        Optional<Map<String, Object>> args = call.args();
 
-                    case 1 -> scheduleRoutine(from, pdc.rawArgs());//anota tarefa a rotina
+        switch (call.name().orElse("")){
+            case "agendar_rotina" -> scheduleRoutine(
+                    from,
+                    (String) args.get().get("data"),
+                    (String) args.get().get("hora"),
+                    (String) args.get().get("descricao")
+            );
+            case "anotar_ideia" -> saveIdea(from, (String) args.get().get("conteudo"));
+            case "remover_rotina" -> deleteRecord(from, String.valueOf(((Number) args.get().get("id")).longValue()));
+            case "remover_ideia" -> deleteIdea(String.valueOf(((Number) args.get().get("id")).longValue()), from);
+            case "concluir_tarefa" -> completeTask(from, String.valueOf(((Number) args.get().get("id")).longValue()));
+            case "listar_ativos" -> listActive(from);
+            case "resumo_hoje" -> todaySummary(from, null);
+            case "historico" -> listHistory(from);
+            case "criar_lembrete" -> setReminder(
+                    from,
+                    ((Number) args.get().get("minutos")).intValue(),
+                    (String) args.get().get("descricao")
+            );
+        }
 
-                    case 2 -> saveIdea(from, pdc.rawArgs());//salvar ideia
+   }
 
-                    case 3 -> deleteRecord(from, pdc.rawArgs());//deletar rotina ou ideia
-
-                    case 4 -> deleteIdea(pdc.rawArgs(), from);
-
-                    case 5 -> listActive(from);//listar rotina pendente e todas ideias
-
-                    case 6 -> completeTask(from, pdc.rawArgs());//alterar status da tarefa
-
-                    case 7 -> todaySummary(from, pdc.rawArgs());//listar tarefas do dia
-
-                    case 8 -> setReminder(pdc.rawArgs(), from);//lembrete
-
-                    case 9 -> listHistory(from);//lista todas tarefas concluidas do dia
-                }
-            }catch (InvalidCommandException e){
-                notifier.send(from, "⚠ " + e.getMessage());
-
-            }
-    }
-
-    public String scheduleRoutine(String from, String args){
+    public String scheduleRoutine(String from, String data, String hora ,String descricao){
         Routine routine = new Routine();
-        String[] parts = args.split(",",3);//quebra msg em tres partes
-        String dataComAno = parts[0].trim() + "/" + LocalDate.now().getYear();
 
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");//converte data e hora para LocalDate e LocalTime
-        DateTimeFormatter horaFormatter = DateTimeFormatter.ofPattern("HH:mm");
+        LocalDate date = LocalDate.parse(data);
+        LocalTime time = LocalTime.parse(hora);
+        LocalDateTime dateTime = date.atTime(time);
 
-        LocalDate data = LocalDate.parse(dataComAno, formatter);
-        LocalTime time = LocalTime.parse(parts[1].trim(), horaFormatter);
-        LocalDateTime dataTime = data.atTime(time);//junta data e hora
-
-        routine.setScheduledAt(dataTime);//preenche atributos
-        routine.setDescription(parts[2].trim());
+        routine.setScheduledAt(dateTime);
+        routine.setDescription(descricao);
         routine.setStatus(Status.PENDING);
-
         routineRepo.save(routine);
 
-        StringBuilder sb = new StringBuilder();
+        String msg = "*Tarefa:* " + descricao + " ,*anotado*";
+        notifier.send(from, msg);
+        return msg;
 
-        if(!parts[2].isBlank()){
-                sb.append("*Tarefa:* ").append(parts[2]).append(" ,*anotado*");
-            }
-
-        notifier.send(from, sb.toString());
-        return sb.toString();
     }
 
     public String saveIdea(String from, String content){ //metodo salvar ideia
@@ -198,13 +190,9 @@ public class AssistantService {
         return sb.toString();//retorna em texto/string
     }
 
-    public String setReminder(String args, String from){//recebe minutos e descricao, from numero do whatsapp
-        String[] parts = args.split(",",2   );//separa a msg por virgula em dois pedacos
-        int minutes = Integer.parseInt(parts[0].trim());//converte o minuto enviado em inteiro e tira espacos cm trim
-        String description = parts[1].trim();//tirar espacos da descricao
+    public String setReminder(String from, int minutos, String description){//recebe minutos e descricao, from numero do whatsapp
 
-        StringBuilder sb = new StringBuilder();
-        LocalDateTime triggerAt = LocalDateTime.now().plusMinutes(minutes);//soma minutos recebido + hora atual
+        LocalDateTime triggerAt = LocalDateTime.now().plusMinutes(minutos);//soma minutos recebido + hora atual
 
         Reminder reminder = new Reminder();//criando e salvando reminder
         reminder.setDescription(description);
@@ -213,10 +201,9 @@ public class AssistantService {
         reminder.setFired(false);//fired = false sinalizando q lembrete ainda nao foi disparado
         reminderRepo.save(reminder);
 
-        sb.append(" *Te aviso em* ").append(minutes).append(" *min:*").append(description);
-
-        notifier.send(from, sb.toString());
-        return sb.toString();
+        String msg = " *Te avisoem* " + minutos + " *min:*" + description;
+        notifier.send(from, msg);
+        return msg;
 
     }
 
