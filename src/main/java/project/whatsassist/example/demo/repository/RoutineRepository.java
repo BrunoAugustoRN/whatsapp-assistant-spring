@@ -7,18 +7,18 @@ import project.whatsassist.example.demo.model.Routine;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface RoutineRepository extends JpaRepository<Routine, Long> {
-    List<Routine> findByStatus(Status status);
-    List<Routine> findByScheduledAtBetweenAndStatus(
-            LocalDateTime start,
-            LocalDateTime end,
-            Status status
+    List<Routine> findByStatusAndPhoneNumber(Status status, String phoneNumber);
+    List<Routine> findByScheduledAtBetweenAndStatusAndPhoneNumber(
+            LocalDateTime start, LocalDateTime end, Status status, String phoneNumber
     );
-    List<Routine> findByStatusAndCompletedAtAfterOrderByCompletedAtDesc(
-            Status status,
-            LocalDateTime start
+    List<Routine> findByStatusAndCompletedAtAfterAndPhoneNumberOrderByCompletedAtDesc(
+            Status status, LocalDateTime start, String phoneNumber
+    );
 
-    );
+    boolean existsByIdAndPhoneNumber(Long id, String phoneNumber);
+    Optional<Routine> findByIdAndPhoneNumber(Long id, String phoneNumber);
 
 }

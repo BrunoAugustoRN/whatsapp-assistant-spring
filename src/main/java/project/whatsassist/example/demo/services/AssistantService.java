@@ -31,38 +31,43 @@ public class AssistantService {
     private final IaService iaService;
 
    public void handleIaCommand(String from, String body){
-       GenerateContentResponse response = iaService.interpretar(body);
-        List<FunctionCall> calls = response.functionCalls();
+       try {
+           GenerateContentResponse response = iaService.interpretar(body);
+           List<FunctionCall> calls = response.functionCalls();
 
-        if(calls == null || calls.isEmpty()){
-            notifier.send(from, response.text());
-            return;
-        }
+           if (calls == null || calls.isEmpty()) {
+               notifier.send(from, response.text());
+               return;
+           }
 
-        FunctionCall call = calls.get(0);
-        Optional<Map<String, Object>> args = call.args();
+           FunctionCall call = calls.get(0);
+           Optional<Map<String, Object>> args = call.args();
 
-        switch (call.name().orElse("")){
-            case "agendar_rotina" -> scheduleRoutine(
-                    from,
-                    (String) args.get().get("data"),
-                    (String) args.get().get("hora"),
-                    (String) args.get().get("descricao")
-            );
-            case "anotar_ideia" -> saveIdea(from, (String) args.get().get("conteudo"));
-            case "remover_rotina" -> deleteRecord(from, String.valueOf(((Number) args.get().get("id")).longValue()));
-            case "remover_ideia" -> deleteIdea(String.valueOf(((Number) args.get().get("id")).longValue()), from);
-            case "concluir_tarefa" -> completeTask(from, String.valueOf(((Number) args.get().get("id")).longValue()));
-            case "listar_ativos" -> listActive(from);
-            case "resumo_hoje" -> todaySummary(from, null);
-            case "historico" -> listHistory(from);
-            case "criar_lembrete" -> setReminder(
-                    from,
-                    ((Number) args.get().get("minutos")).intValue(),
-                    (String) args.get().get("descricao")
-            );
-        }
-
+           switch (call.name().orElse("")) {
+               case "agendar_rotina" -> scheduleRoutine(
+                       from,
+                       (String) args.get().get("data"),
+                       (String) args.get().get("hora"),
+                       (String) args.get().get("descricao")
+               );
+               case "anotar_ideia" -> saveIdea(from, (String) args.get().get("conteudo"));
+               case "remover_rotina" -> deleteRecord(from, String.valueOf(((Number) args.get().get("id")).longValue()));
+               case "remover_ideia" -> deleteIdea(String.valueOf(((Number) args.get().get("id")).longValue()), from);
+               case "concluir_tarefa" ->
+                       completeTask(from, String.valueOf(((Number) args.get().get("id")).longValue()));
+               case "listar_ativos" -> listActive(from);
+               case "resumo_hoje" -> todaySummary(from, null);
+               case "historico" -> listHistory(from);
+               case "criar_lembrete" -> setReminder(
+                       from,
+                       ((Number) args.get().get("minutos")).intValue(),
+                       (String) args.get().get("descricao")
+               );
+           }
+       } catch (Exception e) {
+            e.printStackTrace();
+            notifier.send(from, "Nāo consegui entender ou processar sua mensagem, tenta de novo.");
+       }
    }
 
     public String scheduleRoutine(String from, String data, String hora ,String descricao){
@@ -75,6 +80,7 @@ public class AssistantService {
         routine.setScheduledAt(dateTime);
         routine.setDescription(descricao);
         routine.setStatus(Status.PENDING);
+        routine.setPhoneNumber(from);
         routineRepo.save(routine);
 
         String msg = "*Tarefa:* " + descricao + " ,*anotado*";
@@ -86,6 +92,7 @@ public class AssistantService {
     public String saveIdea(String from, String content){ //metodo salvar ideia
         Idea idea = new Idea();//objeto da classe Idea
         idea.setContent(content);//preenche com o conteudo recebido
+        idea.setPhoneNumber(from);
         ideaRepo.save(idea);//salva ideia no db
 
         StringBuilder sb = new StringBuilder();
@@ -99,8 +106,8 @@ public class AssistantService {
     public String deleteRecord(String from, String args) {//metodo deletar ideia ou rotina atraves do ID
         Long id = Long.parseLong(args);//recebe id em forma de string, converte para Long
         StringBuilder sb = new StringBuilder();
-        if (routineRepo.existsById(id)) {//identifica se existe alguma rotina com o ID informado, se existir deleta
-            routineRepo.deleteById(id);//chama repositorio com metodo deleteById
+        if (routineRepo.existsByIdAndPhoneNumber(id, from)) {//identifica se existe alguma rotina com o ID informado, se existir deleta
+            routineRepo.existsByIdAndPhoneNumber(id, from);//chama repositorio com metodo deleteById
             sb.append("*Rotina* ").append(id).append(" ,*removida!*");
         } else {
             sb.append("*Rotina* ").append(id).append(" *não encontrada!*");
@@ -112,8 +119,8 @@ public class AssistantService {
     public String deleteIdea(String args, String from) {
         Long id = Long.parseLong(args);
         StringBuilder sb = new StringBuilder();
-        if (ideaRepo.existsById(id)) {//mesma coisa para ideias
-            ideaRepo.deleteById(id);
+        if (ideaRepo.existsByAndPhoneNumber(id, from)) {//mesma coisa para ideias
+            ideaRepo.existsByAndPhoneNumber(id, from);
             sb.append("*Ideia* ").append(id).append(" ,*removida!*");
         } else {
             sb.append("*Ideia* ").append(id).append(" *não encontrada!*");
@@ -123,8 +130,8 @@ public class AssistantService {
     }
 
     public String listActive(String from){//metodo listar rotinas pendenter e todas ideias
-            List<Routine> routineList = routineRepo.findByStatus(Status.PENDING);//lista de rotinas pendentes
-            List<Idea> ideaList = ideaRepo.findAll();//lista de ideias
+            List<Routine> routineList = routineRepo.findByStatusAndPhoneNumber(Status.PENDING, from);
+            List<Idea> ideaList = ideaRepo.findByPhoneNumber(from);
             StringBuilder sb = new StringBuilder("*Ativos/Pendentes*\n");//stringbuilder para montar a mensagem com a lista de rotinas e ideias
 
             if(routineList.isEmpty() && ideaList.isEmpty()){//ve se existe algo em rotinas ou ideias primeiramente
@@ -155,7 +162,7 @@ public class AssistantService {
     public String completeTask(String from, String args){//Recebe o id em formato de texto
         Long id = Long.parseLong(args);//converte o id para Long
 
-        String msg = routineRepo.findById(id).map(routine ->{//busca em rotina a tarefa com o id q o usuario informou. .map para verificar se realmete existe a tarefa
+        String msg = routineRepo.findByIdAndPhoneNumber(id, from).map(routine ->{//busca em rotina a tarefa com o id q o usuario informou. .map para verificar se realmete existe a tarefa
                 routine.setStatus(Status.DONE);//se existir altera status para DONE
                 routine.setCompletedAt(LocalDateTime.now());//e atualiza a data e hora para o momento atual
                 routineRepo.save(routine);//salva no db
@@ -171,7 +178,7 @@ public class AssistantService {
         LocalDateTime start = today.atStartOfDay();//Data do dia atual + hora do inicio do dia 00:00:00
         LocalDateTime end = today.atTime(23, 59, 59);//Hora final do dia 23:59:59
 
-        List<Routine> routine = routineRepo.findByScheduledAtBetweenAndStatus(start, end, Status.PENDING);//lista de tarefas pendentes do dia, intervalo das 00:00 as 23:59
+        List<Routine> routine = routineRepo.findByScheduledAtBetweenAndStatusAndPhoneNumber(start, end, Status.PENDING, from);//lista de tarefas pendentes do dia, intervalo das 00:00 as 23:59
 
         StringBuilder sb = new StringBuilder(" *Hoje:* \n");//formatacao da mensagem com as tarefas
 
@@ -210,7 +217,7 @@ public class AssistantService {
     public String listHistory(String from){
         LocalDate today = LocalDate.now();//dia atual
         LocalDateTime start = today.atStartOfDay();//inicio do dia 00:00
-        List<Routine> routineList = routineRepo.findByStatusAndCompletedAtAfterOrderByCompletedAtDesc(Status.DONE, start);//busca no bd status DONE apos 00:00
+        List<Routine> routineList = routineRepo.findByStatusAndCompletedAtAfterAndPhoneNumberOrderByCompletedAtDesc(Status.DONE, start, from);//busca no bd status DONE apos 00:00
         StringBuilder sb = new StringBuilder("*Tarefas concluidas:* \n");//formatacao da msg
 
         if(routineList.isEmpty()){//verifica se a alguma tarefa concluida

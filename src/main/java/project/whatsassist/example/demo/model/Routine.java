@@ -28,7 +28,7 @@ public class Routine {
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
-
-
+    @Column(name = "numero_telefone")
+    private String phoneNumber;
 
 }

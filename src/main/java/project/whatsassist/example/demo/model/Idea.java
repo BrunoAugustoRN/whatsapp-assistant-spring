@@ -1,9 +1,6 @@
 package project.whatsassist.example.demo.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -28,4 +25,6 @@ public class Idea {
     @CreationTimestamp//definir data hora atuais automaticamente
     private LocalDateTime createdAt;
 
+    @Column(name = "numero_telefone")
+    private String phoneNumber;
 }
