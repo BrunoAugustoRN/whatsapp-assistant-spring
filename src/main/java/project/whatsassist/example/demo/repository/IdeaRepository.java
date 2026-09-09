@@ -7,5 +7,5 @@ import java.util.List;
 
 public interface IdeaRepository extends JpaRepository <Idea, Long> {
     List<Idea> findByPhoneNumber(String phoneNumber);
-    boolean existsByAndPhoneNumber(Long id, String phoneNumber);
+    boolean existsByIdAndPhoneNumber(Long id, String phoneNumber);
 }

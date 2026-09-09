@@ -137,8 +137,8 @@ public class AssistantService {
     public String deleteIdea(String args, String from) {
         Long id = Long.parseLong(args);
         StringBuilder sb = new StringBuilder();
-        if (ideaRepo.existsByAndPhoneNumber(id, from)) {//mesma coisa para ideias
-            ideaRepo.existsByAndPhoneNumber(id, from);
+        if (ideaRepo.existsByIdAndPhoneNumber(id, from)) {//mesma coisa para ideias
+            ideaRepo.deleteById(id);
             sb.append("*Ideia* ").append(id).append(" ,*removida!*");
         } else {
             sb.append("*Ideia* ").append(id).append(" *não encontrada!*");
