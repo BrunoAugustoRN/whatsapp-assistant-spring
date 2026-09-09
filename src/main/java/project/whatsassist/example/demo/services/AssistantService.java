@@ -1,10 +1,13 @@
 package project.whatsassist.example.demo.services;
 
+import com.google.genai.types.Content;
 import com.google.genai.types.FunctionCall;
 import com.google.genai.types.GenerateContentResponse;
+import com.google.genai.types.Part;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import project.whatsassist.example.demo.enuns.Status;
+import project.whatsassist.example.demo.ia.ConversationMemory;
 import project.whatsassist.example.demo.ia.IaService;
 import project.whatsassist.example.demo.model.Idea;
 import project.whatsassist.example.demo.model.Reminder;
@@ -29,21 +32,31 @@ public class AssistantService {
     private final IdeaRepository ideaRepo;
     private final ReminderRepository reminderRepo;
     private final IaService iaService;
+    private final ConversationMemory conversationMemory;
 
    public void handleIaCommand(String from, String body){
        try {
-           GenerateContentResponse response = iaService.interpretar(body);
+           String contexto = buildContextoItens(from);
+
+           List<Content> historico = conversationMemory.get(from);
+
+           GenerateContentResponse response = iaService.interpretar(body, historico, contexto);
+
            List<FunctionCall> calls = response.functionCalls();
 
            if (calls == null || calls.isEmpty()) {
-               notifier.send(from, response.text());
+               String texto = response.text();
+               conversationMemory.adicionar(from,Content.builder().role("user")
+                       .parts(List.of(Part.fromText(body))).build());
+               notifier.send(from, texto);
                return;
            }
 
            FunctionCall call = calls.get(0);
            Optional<Map<String, Object>> args = call.args();
+           String nomeFuncao = call.name().orElse("");
 
-           switch (call.name().orElse("")) {
+           String resultado = switch (nomeFuncao) {
                case "agendar_rotina" -> scheduleRoutine(
                        from,
                        (String) args.get().get("data"),
@@ -63,7 +76,12 @@ public class AssistantService {
                        ((Number) args.get().get("minutos")).intValue(),
                        (String) args.get().get("descricao")
                );
-           }
+               default -> "";
+           };
+
+           conversationMemory.adicionar(from, Content.builder().role("model")
+                   .parts(List.of(Part.fromText("Executei: " + nomeFuncao))).build());
+
        } catch (Exception e) {
             e.printStackTrace();
             notifier.send(from, "Nāo consegui entender ou processar sua mensagem, tenta de novo.");
@@ -232,6 +250,21 @@ public class AssistantService {
         }
         notifier.send(from, sb.toString());
         return sb.toString();
+    }
+
+    private String buildContextoItens(String from){
+       List<Routine> routines = routineRepo.findByStatusAndPhoneNumber(Status.PENDING, from);
+       List<Idea> ideas = ideaRepo.findByPhoneNumber(from);
+       StringBuilder stringBuilder = new StringBuilder();
+
+       for (Routine r : routines) {
+           stringBuilder.append("- rotina id ").append(r.getId()).append(": ").append(r.getDescription()).append("\n");
+       }
+
+        for (Idea i : ideas) {
+            stringBuilder.append("- ideia id ").append(i.getId()).append(": ").append(i.getContent()).append("\n");
+        }
+        return stringBuilder.isEmpty() ? "Nenhum item ativo." : stringBuilder.toString();
     }
 
 }
