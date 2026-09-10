@@ -20,15 +20,15 @@ public class Routine {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     @NotBlank
-    @Column(name = "Descrição")
+    @Column(name = "descricao")
     private String description;
     private LocalDateTime scheduledAt;
+    @Enumerated(EnumType.STRING)
     private Status status;
     private LocalDateTime completedAt;
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
-    @Column(name = "numero_telefone")
     private String phoneNumber;
 
 }

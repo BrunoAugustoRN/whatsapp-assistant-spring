@@ -16,11 +16,10 @@ public class Reminder {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "Descrição")
+    @Column(name = "descricao")
     private String description;
     private LocalDateTime triggerAt;
 
-    @Column(name = "Numero_telefone")
     private String phoneNumber;
     private boolean fired = false;
     private LocalDateTime createdAt;

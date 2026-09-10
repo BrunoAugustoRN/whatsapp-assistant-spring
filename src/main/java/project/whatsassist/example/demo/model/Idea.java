@@ -25,6 +25,5 @@ public class Idea {
     @CreationTimestamp//definir data hora atuais automaticamente
     private LocalDateTime createdAt;
 
-    @Column(name = "numero_telefone")
     private String phoneNumber;
 }
