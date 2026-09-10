@@ -8,6 +8,7 @@ import com.google.genai.Client;
 import com.google.genai.types.GenerateContentResponse;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -32,9 +33,15 @@ public class IaService {
                 )
                 .build();
 
+        List<Content> contents = new ArrayList<>(historico);//copia o historico da conversa
+        contents.add(Content.builder()//adiciona a mensagem atual do usuario no final
+                .role("user")
+                .parts(List.of(Part.fromText(mensagemUsuario)))
+                .build());
+
         return client.models.generateContent(//chama da API do Gemini
                 "gemini-3.6-flash",
-                mensagemUsuario,
+                contents,
                 config
         );
 

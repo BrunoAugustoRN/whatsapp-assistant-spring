@@ -42,12 +42,15 @@ public class AssistantService {
 
            GenerateContentResponse response = iaService.interpretar(body, historico, contexto);
 
+           conversationMemory.adicionar(from, Content.builder().role("user")
+                   .parts(List.of(Part.fromText(body))).build());
+
            List<FunctionCall> calls = response.functionCalls();
 
            if (calls == null || calls.isEmpty()) {
                String texto = response.text();
-               conversationMemory.adicionar(from,Content.builder().role("user")
-                       .parts(List.of(Part.fromText(body))).build());
+               conversationMemory.adicionar(from, Content.builder().role("model")
+                       .parts(List.of(Part.fromText(texto))).build());
                notifier.send(from, texto);
                return;
            }
@@ -125,7 +128,7 @@ public class AssistantService {
         Long id = Long.parseLong(args);//recebe id em forma de string, converte para Long
         StringBuilder sb = new StringBuilder();
         if (routineRepo.existsByIdAndPhoneNumber(id, from)) {//identifica se existe alguma rotina com o ID informado, se existir deleta
-            routineRepo.existsByIdAndPhoneNumber(id, from);//chama repositorio com metodo deleteById
+            routineRepo.deleteById(id);//chama repositorio com metodo deleteById
             sb.append("*Rotina* ").append(id).append(" ,*removida!*");
         } else {
             sb.append("*Rotina* ").append(id).append(" *não encontrada!*");
