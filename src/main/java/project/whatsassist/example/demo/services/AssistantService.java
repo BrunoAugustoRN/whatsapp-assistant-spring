@@ -19,6 +19,7 @@ import project.whatsassist.example.demo.repository.RoutineRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -153,6 +154,7 @@ public class AssistantService {
     public String listActive(String from){//metodo listar rotinas pendenter e todas ideias
             List<Routine> routineList = routineRepo.findByStatusAndPhoneNumber(Status.PENDING, from);
             List<Idea> ideaList = ideaRepo.findByPhoneNumber(from);
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
             StringBuilder sb = new StringBuilder("*Ativos/Pendentes*\n");//stringbuilder para montar a mensagem com a lista de rotinas e ideias
 
             if(routineList.isEmpty() && ideaList.isEmpty()){//ve se existe algo em rotinas ou ideias primeiramente
@@ -165,7 +167,7 @@ public class AssistantService {
                 for(Routine r : routineList) {
                     sb.append("- ").append(r.getId());
                     sb.append(" - ").append(r.getDescription());
-                    sb.append("(").append(r.getScheduledAt()).append(")\n");
+                    sb.append("(").append(r.getScheduledAt().format(formatter)).append(")\n");
                 }
                 }
                 if(!ideaList.isEmpty()){
@@ -173,7 +175,7 @@ public class AssistantService {
                 for(Idea i : ideaList){
                     sb.append("- ").append(i.getId());
                     sb.append(" - ").append(i.getContent());
-                    sb.append("- (").append(i.getCreatedAt()).append(")\n");
+                    sb.append("- (").append(i.getCreatedAt().format(formatter)).append(")\n");
                 }
             }
             notifier.send(from,sb.toString());

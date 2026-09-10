@@ -1,17 +1,9 @@
 package project.whatsassist.example.demo.ia;
 
-import com.google.genai.gaos.models.interactions.Function;
 import com.google.genai.types.FunctionDeclaration;
 import com.google.genai.types.Schema;
 import com.google.genai.types.Tool;
 import com.google.genai.types.Type;
-import project.whatsassist.example.demo.enuns.Status;
-import project.whatsassist.example.demo.model.Routine;
-import project.whatsassist.example.demo.repository.RoutineRepository;
-
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.Map;
 
 public class AssistantFunctions {
